@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>شات معا - الدردشة العامة</title>
+<title>شات معا - الدردشة</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,22 +11,45 @@
 
 <div class="chat-layout">
     <div class="chat-header">
-        <div>
-            <strong id="welcome-name">💬 شات معا</strong>
-            <div class="online-badge"><span class="online-dot"></span> <span id="online-count">0</span> متصل الآن</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div class="avatar" id="my-avatar" onclick="openAvatarPicker()" style="cursor:pointer;background-size:cover;background-position:center;"></div>
+            <div>
+                <strong id="welcome-name">💬 شات معا</strong>
+                <div class="online-badge"><span class="online-dot"></span> <span id="online-count">0</span> متصل الآن</div>
+            </div>
         </div>
         <div>
-            <button class="secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="sendMessageToAdmin()">✉️ مراسلة الإدارة</button>
-            <button class="secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="logout()">خروج</button>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 10px;" onclick="toggleRoomsPanel()">☰ الغرف</button>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 10px;" onclick="sendMessageToAdmin()">✉️</button>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 10px;" onclick="logout()">خروج</button>
         </div>
     </div>
 
+    <div id="rooms-panel" class="card" style="margin:10px;display:none;">
+        <h3>الغرف</h3>
+        <div id="rooms-list"></div>
+        <button onclick="showCreateRoom()">➕ إنشاء غرفة جديدة</button>
+        <div id="create-room-form" style="display:none;margin-top:10px;">
+            <input type="text" id="new-room-name" placeholder="اسم الغرفة">
+            <div class="gender-toggle">
+                <label><input type="radio" name="room-type" value="public" checked><span>عامة</span></label>
+                <label><input type="radio" name="room-type" value="private"><span>خاصة</span></label>
+            </div>
+            <input type="password" id="new-room-password" placeholder="كلمة مرور (للغرف الخاصة)" style="margin-top:8px;">
+            <button onclick="createRoom()">إنشاء</button>
+        </div>
+    </div>
+
+    <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="onAvatarSelected(event)">
+
     <div id="welcome-banner" class="card" style="margin:10px;display:none;"></div>
+
+    <div class="chat-header" style="border-top:1px solid var(--border);">
+        <strong id="current-room-name">الدردشة العامة</strong>
+    </div>
 
     <div class="messages" id="messages"></div>
     <div class="typing-indicator" id="typing-indicator"></div>
-
-    <div class="member-strip" id="member-strip">اتصال بالخادم...</div>
 
     <div class="composer">
         <input type="text" id="msg-input" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMessage()" oninput="notifyTyping()">
