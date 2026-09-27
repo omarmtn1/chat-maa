@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شات معا - لوحة التحكم</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container" id="admin-login-container">
+    <div class="logo">🛡️ لوحة تحكم شات معا</div>
+    <div class="card">
+        <label>كلمة مرور الإدارة</label>
+        <input type="password" id="admin-password" placeholder="••••••••">
+        <div class="error" id="admin-login-error"></div>
+        <button onclick="adminLogin()">دخول</button>
+    </div>
+</div>
+
+<div class="container" id="admin-panel" style="display:none;max-width:900px;">
+    <div class="logo">🛡️ لوحة تحكم شات معا</div>
+
+    <div class="admin-grid">
+
+        <div class="card">
+            <h3>📢 بث رسالة لجميع الأعضاء</h3>
+            <input type="text" id="broadcast-text" placeholder="نص الرسالة">
+            <button onclick="sendBroadcast()">إرسال للجميع</button>
+        </div>
+
+        <div class="card">
+            <h3>🛠️ وضع الصيانة</h3>
+            <label><input type="checkbox" id="maint-active" style="width:auto;"> تفعيل وضع الصيانة</label>
+            <label>سبب الصيانة</label>
+            <input type="text" id="maint-reason" placeholder="مثال: تحديث الخادم">
+            <label>موعد العودة</label>
+            <input type="datetime-local" id="maint-restart">
+            <button onclick="saveMaintenance()">حفظ إعدادات الصيانة</button>
+        </div>
+
+        <div class="card">
+            <h3>📰 شريط الإعلانات</h3>
+            <label>النص</label>
+            <input type="text" id="ticker-text">
+            <label>السرعة (1-10)</label>
+            <input type="number" id="ticker-speed" min="1" max="10">
+            <label>الاتجاه</label>
+            <select id="ticker-direction">
+                <option value="right">يمين</option>
+                <option value="left">يسار</option>
+            </select>
+            <label>حجم الخط</label>
+            <input type="number" id="ticker-font-size">
+            <label><input type="checkbox" id="ticker-visible" style="width:auto;"> ظاهر</label>
+            <button onclick="saveTicker()">حفظ إعدادات الشريط</button>
+        </div>
+
+        <div class="card">
+            <h3>🚫 الكلمات الممنوعة</h3>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="new-banned-word" placeholder="كلمة جديدة">
+                <button style="width:auto;margin-top:0;" onclick="addBannedWord()">إضافة</button>
+            </div>
+            <div id="banned-words-list" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+            <h3>👥 إدارة الأعضاء</h3>
+            <div style="overflow-x:auto;">
+                <table id="users-table">
+                    <thead><tr><th>الاسم</th><th>الهاتف</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>✉️ رسائل الأعضاء إلى الإدارة</h3>
+            <div id="admin-messages-list"></div>
+        </div>
+
+        <div class="card">
+            <h3>📜 سجل إجراءات الإدارة</h3>
+            <div id="admin-logs-list" style="max-height:200px;overflow-y:auto;font-size:12px;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="js/admin.js"></script>
+</body>
+  </html>
