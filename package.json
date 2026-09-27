@@ -4,7 +4,7 @@
   "description": "شات معا - تطبيق دردشة فورية باللغة العربية",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node db/init.js && node server.js",
     "init-db": "node db/init.js"
   },
   "dependencies": {
