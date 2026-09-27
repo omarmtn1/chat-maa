@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شات معا</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ticker-holder"></div>
+
+<div class="container">
+    <div class="logo">💬 شات معا</div>
+    <div class="tagline">دردشة فورية، بسيطة وآمنة</div>
+
+    <div class="card" id="login-card">
+        <h2>تسجيل الدخول</h2>
+        <label>رقم الهاتف (مع رمز الدولة 963)</label>
+        <input type="tel" id="login-phone" placeholder="9639xxxxxxxx">
+        <label>كلمة المرور</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+        <div class="error" id="login-error"></div>
+        <button onclick="doLogin()">دخول</button>
+        <div class="link">ليس لديك حساب؟ <a href="#" onclick="toggleForms()">سجّل الآن</a></div>
+        <div class="link"><a href="admin.html">دخول لوحة التحكم</a></div>
+    </div>
+
+    <div class="card" id="register-card" style="display:none;">
+        <h2>إنشاء حساب جديد</h2>
+        <label>رقم الهاتف (مع رمز الدولة 963)</label>
+        <input type="tel" id="reg-phone" placeholder="9639xxxxxxxx">
+        <label>الاسم المعروض</label>
+        <input type="text" id="reg-name" placeholder="اسمك في الدردشة">
+        <label>كلمة المرور</label>
+        <input type="password" id="reg-password" placeholder="••••••••">
+        <label>الجنس</label>
+        <div class="gender-toggle">
+            <label><input type="radio" name="gender" value="male" checked><span>👨 ذكر</span></label>
+            <label><input type="radio" name="gender" value="female"><span>👩 أنثى</span></label>
+        </div>
+        <label>العمر</label>
+        <input type="number" id="reg-age" min="13" max="100" placeholder="العمر">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+            <input type="checkbox" id="reg-terms" style="width:auto;">
+            <span>أوافق على شروط استخدام الدردشة</span>
+        </label>
+        <div class="error" id="reg-error"></div>
+        <button onclick="doRegister()">إنشاء الحساب</button>
+        <div class="link">لديك حساب؟ <a href="#" onclick="toggleForms()">سجّل الدخول</a></div>
+    </div>
+</div>
+
+<script src="js/ticker.js"></script>
+<script>
+function toggleForms() {
+    document.getElementById('login-card').style.display =
+        document.getElementById('login-card').style.display === 'none' ? 'block' : 'none';
+    document.getElementById('register-card').style.display =
+        document.getElementById('register-card').style.display === 'none' ? 'block' : 'none';
+}
+
+function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('show');
+}
+
+async function doLogin() {
+    const phone = document.getElementById('login-phone').value.trim();
+    const password = document.getElementById('login-password').value;
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return showError('login-error', data.error || 'حدث خطأ');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'chat.html';
+    } catch (e) {
+        showError('login-error', 'تعذر الاتصال بالخادم');
+    }
+}
+
+async function doRegister() {
+    const phone = document.getElementById('reg-phone').value.trim();
+    const display_name = document.getElementById('reg-name').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const gender = document.querySelector('input[name="gender"]:checked').value;
+    const age = parseInt(document.getElementById('reg-age').value, 10);
+    const agreed_terms = document.getElementById('reg-terms').checked;
+
+    try {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, password, display_name, gender, age, agreed_terms })
+        });
+        const data = await res.json();
+        if (!res.ok) return showError('reg-error', data.error || 'حدث خطأ');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'chat.html';
+    } catch (e) {
+        showError('reg-error', 'تعذر الاتصال بالخادم');
+    }
+}
+</script>
+</body>
+</html>
