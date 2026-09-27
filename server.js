@@ -8,17 +8,17 @@ const WebSocket = require('ws');
 const pool = require('./db/pool');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
-const { verifyToken, containsSuspiciousContent, filterBannedWords } = require('./utils');
+const { requireAuth } = require('./middleware/authMiddleware');
+const { verifyToken, containsSuspiciousContent, filterBannedWords, hashPassword, comparePassword } = require('./utils');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
-// حالة السيرفر العامة
 app.get('/api/status', async (req, res) => {
     const maint = await pool.query('SELECT * FROM maintenance_mode ORDER BY id DESC LIMIT 1');
     const ticker = await pool.query('SELECT * FROM ad_ticker_settings ORDER BY id DESC LIMIT 1');
@@ -30,16 +30,69 @@ app.get('/api/status', async (req, res) => {
     });
 });
 
-// آخر عضو مسجل (لرسالة الترحيب)
 app.get('/api/newest-member', async (req, res) => {
     const result = await pool.query('SELECT display_name FROM users ORDER BY created_at DESC LIMIT 1');
     res.json(result.rows[0] || null);
 });
 
+// ---- الغرف ----
+
+app.get('/api/rooms', requireAuth, async (req, res) => {
+    const result = await pool.query(
+        `SELECT r.id, r.name, r.type, r.created_at FROM rooms r
+         WHERE r.is_active = true AND (
+             r.type = 'public' OR r.id IN (SELECT room_id FROM room_members WHERE user_id = $1)
+         )
+         ORDER BY r.type, r.created_at`,
+        [req.user.id]
+    );
+    res.json(result.rows);
+});
+
+app.post('/api/rooms', requireAuth, async (req, res) => {
+    const { name, type, password } = req.body;
+    if (!name || !['public', 'private'].includes(type)) {
+        return res.status(400).json({ error: 'اسم ونوع الغرفة مطلوبان' });
+    }
+    const password_hash = type === 'private' && password ? await hashPassword(password) : null;
+    const result = await pool.query(
+        'INSERT INTO rooms (name, type, password_hash, created_by) VALUES ($1,$2,$3,$4) RETURNING id, name, type, created_at',
+        [name, type, password_hash, req.user.id]
+    );
+    if (type === 'private') {
+        await pool.query('INSERT INTO room_members (room_id, user_id) VALUES ($1,$2)', [result.rows[0].id, req.user.id]);
+    }
+    res.status(201).json(result.rows[0]);
+});
+
+app.get('/api/rooms/:id/messages', requireAuth, async (req, res) => {
+    const result = await pool.query(
+        `SELECT m.*, u.display_name, u.avatar_url, u.is_female_member FROM messages m
+         JOIN users u ON u.id = m.sender_id
+         WHERE m.room_id = $1 AND m.receiver_id IS NULL AND m.is_deleted = false
+         ORDER BY m.created_at DESC LIMIT 50`,
+        [req.params.id]
+    );
+    res.json(result.rows.reverse());
+});
+
+// ---- الصورة الشخصية ----
+
+app.put('/api/profile/avatar', requireAuth, async (req, res) => {
+    const { avatar_data } = req.body;
+    if (!avatar_data || !avatar_data.startsWith('data:image/')) {
+        return res.status(400).json({ error: 'صورة غير صالحة' });
+    }
+    if (avatar_data.length > 900000) {
+        return res.status(400).json({ error: 'حجم الصورة كبير جداً، اختر صورة أصغر' });
+    }
+    await pool.query('UPDATE users SET avatar_url = $1 WHERE id = $2', [avatar_data, req.user.id]);
+    res.json({ message: 'تم تحديث الصورة', avatar_url: avatar_data });
+});
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: '/ws' });
 
-// خريطة: userId -> اتصال WebSocket
 const clients = new Map();
 
 async function getBannedWords() {
@@ -59,9 +112,16 @@ function broadcast(type, payload, excludeUserId = null) {
     }
 }
 
+function broadcastToRoom(roomId, type, payload, excludeUserId = null) {
+    for (const [uid, ws] of clients.entries()) {
+        if (ws.currentRoomId === roomId && uid !== excludeUserId) send(ws, type, payload);
+    }
+}
+
 wss.on('connection', (ws, req) => {
     ws.isAlive = true;
     ws.userId = null;
+    ws.currentRoomId = null;
 
     ws.on('pong', () => { ws.isAlive = true; });
 
@@ -75,7 +135,6 @@ wss.on('connection', (ws, req) => {
 
         const { type, payload } = data;
 
-        // مصادقة الاتصال أولاً بالتوكن
         if (type === 'auth') {
             const decoded = verifyToken(payload.token);
             if (!decoded || !decoded.id) {
@@ -89,9 +148,8 @@ wss.on('connection', (ws, req) => {
             const userRes = await pool.query('SELECT id, display_name, gender, avatar_url, is_female_member FROM users WHERE id=$1', [decoded.id]);
 
             broadcast('presence', { user: userRes.rows[0], status: 'online' }, decoded.id);
-            const onlineCount = clients.size;
-            broadcast('online_count', { count: onlineCount });
-            send(ws, 'auth_ok', { onlineCount });
+            broadcast('online_count', { count: clients.size });
+            send(ws, 'auth_ok', { onlineCount: clients.size });
             return;
         }
 
@@ -99,15 +157,19 @@ wss.on('connection', (ws, req) => {
             return send(ws, 'error', { message: 'يجب المصادقة أولاً' });
         }
 
-        // تحقق من وضع الصيانة
         const maint = await pool.query('SELECT * FROM maintenance_mode ORDER BY id DESC LIMIT 1');
         if (maint.rows[0]?.is_active && ws.role !== 'admin') {
             return send(ws, 'maintenance', maint.rows[0]);
         }
 
         switch (type) {
+            case 'join_room': {
+                ws.currentRoomId = payload.roomId;
+                break;
+            }
+
             case 'typing': {
-                broadcast('typing', { userId: ws.userId, roomId: payload.roomId, isTyping: payload.isTyping }, ws.userId);
+                broadcastToRoom(payload.roomId, 'typing', { userId: ws.userId, roomId: payload.roomId, isTyping: payload.isTyping }, ws.userId);
                 break;
             }
 
@@ -130,12 +192,10 @@ wss.on('connection', (ws, req) => {
                 const fullMsg = { ...msg, sender: senderInfo.rows[0] };
 
                 if (receiverId) {
-                    // رسالة خاصة بين عضوين
                     send(clients.get(receiverId), 'message', fullMsg);
                     send(ws, 'message', fullMsg);
                 } else {
-                    // رسالة في غرفة (عامة أو خاصة) لجميع المتصلين المهتمين بها
-                    broadcast('message', fullMsg);
+                    broadcastToRoom(roomId, 'message', fullMsg);
                 }
                 break;
             }
@@ -148,7 +208,6 @@ wss.on('connection', (ws, req) => {
             }
 
             case 'admin_message': {
-                // رسالة من عضو إلى الإدارة
                 const { content } = payload;
                 if (!content) return;
                 await pool.query('INSERT INTO admin_messages (user_id, content) VALUES ($1,$2)', [ws.userId, content]);
@@ -159,7 +218,6 @@ wss.on('connection', (ws, req) => {
             }
 
             case 'admin_broadcast': {
-                // بث رسالة من الإدارة لجميع الأعضاء
                 if (ws.role !== 'admin' && ws.role !== 'moderator') return;
                 broadcast('admin_broadcast', { content: payload.content, at: new Date().toISOString() });
                 break;
@@ -180,7 +238,6 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-// نبضة دورية للتأكد من الاتصالات الحية
 const heartbeat = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) return ws.terminate();
