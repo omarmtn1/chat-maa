@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: chat-maa
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # ستدخلها يدوياً من لوحة Render (رابط Neon)
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true   # يولّده Render تلقائياً بشكل عشوائي وآمن
+      - key: ADMIN_PASSWORD
+        value: omar_root

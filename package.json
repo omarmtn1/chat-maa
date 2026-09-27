@@ -1,0 +1,19 @@
+{
+  "name": "chat-maa",
+  "version": "1.0.0",
+  "description": "شات معا - تطبيق دردشة فورية باللغة العربية",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node db/init.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0",
+    "pg": "^8.11.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  }
+}
