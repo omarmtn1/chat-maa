@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شات معا - الدردشة العامة</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ticker-holder"></div>
+
+<div class="chat-layout">
+    <div class="chat-header">
+        <div>
+            <strong id="welcome-name">💬 شات معا</strong>
+            <div class="online-badge"><span class="online-dot"></span> <span id="online-count">0</span> متصل الآن</div>
+        </div>
+        <div>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="sendMessageToAdmin()">✉️ مراسلة الإدارة</button>
+            <button class="secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="logout()">خروج</button>
+        </div>
+    </div>
+
+    <div id="welcome-banner" class="card" style="margin:10px;display:none;"></div>
+
+    <div class="messages" id="messages"></div>
+    <div class="typing-indicator" id="typing-indicator"></div>
+
+    <div class="member-strip" id="member-strip">اتصال بالخادم...</div>
+
+    <div class="composer">
+        <input type="text" id="msg-input" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMessage()" oninput="notifyTyping()">
+        <button onclick="sendMessage()">إرسال</button>
+    </div>
+</div>
+
+<script src="js/ticker.js"></script>
+<script src="js/chat.js"></script>
+</body>
+</html>
